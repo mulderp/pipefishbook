@@ -12,6 +12,7 @@
     "jquery-untouched": "~1.10.2",
     "backbone": "~1.1.2",
     "underscore": "~1.6.0",
-    "pushstate-server": "~0.2.0"
+    "pushstate-server": "~0.2.0",
+    "moment": "~2.5.1"
   }
 }
