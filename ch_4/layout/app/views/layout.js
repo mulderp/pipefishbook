@@ -4,6 +4,7 @@
   
   // import the moviesList
   var MoviesList = require('views/moviesList');
+  var DetailsView = require('views/details');
   
   var Layout = Backbone.XView.extend({
 
@@ -12,8 +13,14 @@
                </div>                \
                <div id="details">    \
                </div>'),
-    setDetails: function() {
+    setDetails: function(movie) {
+      if (this.currentDetails) {
+        this.removeView(this.currentDetails.cid);
+      }
+      this.currentDetails = new DetailsView({model: movie});
+      this.addView('#details', this.currentDetails);
     },
+    
     initialize: function(options) {
       this.addView('#overview', new MoviesList({
         collection: options.router.movies,

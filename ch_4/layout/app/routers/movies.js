@@ -19,10 +19,12 @@ var MoviesRouter = Backbone.Router.extend({
   selectMovie: function(id) {
     this.movies.resetSelected();
     this.movies.selectByID(id);
+    this.layout.setDetails(this.movies.get(id));
   },
 
   showMain: function() {
     this.movies.resetSelected();
+    this.layout.setChose();
   },
 
   initialize: function(options) {

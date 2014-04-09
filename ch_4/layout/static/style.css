@@ -1,36 +1,53 @@
-  .movie {
-      width: 90px;
-      height: 90px;
-      background-color: #3D9970;
-      color: white;
-      margin: 10px;
-  }
+.movie {
+    width: 90px;
+    height: 90px;
+    background-color: #3D9970;
+    color: white;
+    margin: 10px;
+}
 
-  .movie h1 {
-    font-size: 16px;
-  }
+.movie h1 {
+  font-size: 16px;
+}
 
- .movie a {
-      color: white;
-  }
+.movie a {
+    color: white;
+}
 
-  .selected a {
-      color: #ffff7f;
-  }
-  
-  .details {
-      width: 240px;
-      margin: 10px;
-      background-color: blue;
-      color: white;
-      float: left;
-  }
-  
-  .selected {
-      border: 2px #01FF70 solid;
-  }
-  
-  #movies {
-    width: 120px;
+.details {
+    width: 240px;
+    margin: 10px;
+    background-color: blue;
+    color: white;
     float: left;
-  }
+}
+
+.selected {
+    border: 3px #01FF70 solid;
+}
+
+.selected a {
+    color: #ffff7f;
+}
+
+
+#movies {
+  width: 120px;
+  float: left;
+}
+
+#movies {
+ width: 720px;
+}
+
+#overview {
+  width: 200px;
+  float: left;
+}
+
+#details {
+  width: 400px;
+  float: right;
+  border: 3px black solid;
+  padding: 20px;
+}
