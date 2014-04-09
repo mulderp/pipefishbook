@@ -15,7 +15,7 @@ $(document).ready(function() {
 });
 
 
-},{"backbone":9,"jquery-untouched":11,"routers/movies":4}],2:[function(require,module,exports){
+},{"backbone":10,"jquery-untouched":12,"routers/movies":4}],2:[function(require,module,exports){
 var Backbone = require('backbone');
 var Movie = require('models/movie');
 var _ = require('underscore');
@@ -43,7 +43,7 @@ var Movies = Backbone.Collection.extend({
 })
 module.exports = Movies;
 
-},{"backbone":9,"models/movie":3,"underscore":12}],3:[function(require,module,exports){
+},{"backbone":10,"models/movie":3,"underscore":13}],3:[function(require,module,exports){
 var Backbone = require("backbone");
   var Movie = Backbone.Model.extend({
     defaults: {
@@ -55,7 +55,7 @@ var Backbone = require("backbone");
   });
   module.exports = Movie;
 
-},{"backbone":9}],4:[function(require,module,exports){
+},{"backbone":10}],4:[function(require,module,exports){
 var Backbone = require('backbone');
 var _ = require('underscore');
 
@@ -93,27 +93,30 @@ var MoviesRouter = Backbone.Router.extend({
 });
 module.exports = MoviesRouter;
 
-},{"../../../movies.json":8,"backbone":9,"collections/movies":2,"underscore":12,"views/layout":5}],5:[function(require,module,exports){
+},{"../../../movies.json":8,"backbone":10,"collections/movies":2,"underscore":13,"views/layout":5}],5:[function(require,module,exports){
   var Backbone = require('backbone');
+  Backbone.XView = require('backbone.xview');
+  var _ = require('underscore');
   
   // import the moviesList
   var MoviesList = require('views/moviesList');
   
-  var Layout = Backbone.View.extend({
-    
-    render: function() {
-      this.$el.append(this.moviesList.render().el);
-      return this;
+  var Layout = Backbone.XView.extend({
+
+    template: _.template('           \
+               <div id="overview">   \
+               </div>                \
+               <div id="details">    \
+               </div>'),
+    setDetails: function() {
     },
-  
     initialize: function(options) {
-      this.moviesList = new MoviesList({
-        el: options.el,
-        collection: options.collection,
+      this.addView('#overview', new MoviesList({
+        collection: options.router.movies,
         router: options.router
-      });
+      }));
     }
-  
+ 
   });
 
   var instance;
@@ -129,9 +132,7 @@ module.exports = MoviesRouter;
   }
   module.exports = Layout;
 
-
-
-},{"backbone":9,"views/moviesList":7}],6:[function(require,module,exports){
+},{"backbone":10,"backbone.xview":9,"underscore":13,"views/moviesList":7}],6:[function(require,module,exports){
 var Backbone = require('backbone');
 var $ = require('jquery-untouched');
 var _ = require('underscore');
@@ -168,7 +169,7 @@ var MovieView = Backbone.View.extend({
 });
 module.exports = MovieView;
 
-},{"backbone":9,"jquery-untouched":11,"underscore":12}],7:[function(require,module,exports){
+},{"backbone":10,"jquery-untouched":12,"underscore":13}],7:[function(require,module,exports){
 var Backbone = require('backbone');
 var _ = require('underscore');
 
@@ -207,12 +208,422 @@ MoviesList.getInstance = function(options) {
 
 module.exports = MoviesList;
 
-},{"backbone":9,"underscore":12,"views/movie":6}],8:[function(require,module,exports){
+},{"backbone":10,"underscore":13,"views/movie":6}],8:[function(require,module,exports){
 module.exports=[ {"id": 1, "title": "The Artist" },
   {"id": 2, "title": "Taxi Driver"},
   {"id": 3, "title": "La Dolce Vita"} ]
 
 },{}],9:[function(require,module,exports){
+/**
+ * XView
+ *
+ * Easily create hierarchical structures
+ * An XView can make multiple child views, which can have multiple child views.
+ * When removing a parent view, children are removed automatically.
+ *
+ * Easy templating
+ * Add a template string to the template property, and optionally add unwrap: true 
+ * to avoid having Backbone wrap it in an extra tag. This can make templating 
+ * and styling easier.
+ */
+
+
+/**
+ * Factory
+ */
+;(function(factory) {
+  // AMD
+  if (typeof define === 'function' && define.amd) {      
+    define(['underscore', 'backbone'], factory);
+  }
+
+  //CommonJS
+  else if (typeof exports !== 'undefined') {
+    factory(require('underscore'), require('backbone'));
+  }
+
+  //Globals
+  else {
+    factory(_, Backbone);
+  }
+}(function(_, Backbone) {
+
+
+
+  /**
+   * Main view
+   */
+  var XView = Backbone.View.extend({
+    //Helpers functions (and properties) that are sent to the template on render
+    renderHelpers: {},
+
+    /**
+     * Constructor
+     *
+     * @param {Object} [options]
+     * @param {View} [options.parent]       Parent view (Passed automatically when using XView#addView)
+     * @param {Function} [options.template] Compiled template, e.g. the result of _.template('<div></div>')
+     * @param {Boolean} [options.unwrap]    Whether to use only the template, so that there isn't an extra tag around the template contents. NOTE: If using unwrap, there must be one single parent element in the template. 
+     */
+    constructor: function(options) {
+      options = options || {};
+
+      this.parent = options.parent;
+      this.children = {};
+
+      if (options.template) this.template = options.template;
+      if (options.unwrap) this.unwrap = options.unwrap;
+
+      this.rendered = false;
+
+      Backbone.View.prototype.constructor.call(this, options);
+    },
+
+    /**
+     * Returns the data to be sent to the template.
+     * Default implementation is to return the model JSON object,
+     * but this method can be overridden to return any other data
+     *
+     * This can also be overridden with a simple object rather than function.
+     * 
+     * @return {Object}     The data to send to the template
+     */
+    templateData: function() {
+      return this.model ? this.model.toJSON() : {};
+    },
+
+    /**
+     * Adds a child view.
+     * If a selector is specified, the view will be appended to that part of the template.
+     *
+     * @param {String} [selector]
+     * @param {Object} [options]
+     * @param {Mixed} [options.id]    For fine-grained control if you need to access views after being added. Not necessary in most cases.
+     * @param {View} view
+     * @return {View}
+     */
+    addView: function(selector, options, view) {
+      //Normalise arguments
+      if (arguments.length == 2) { //selector, view
+        view = options;
+        options = {};
+      } else if (arguments.length == 1) { //view
+        view = selector;
+        options = {};
+        selector = null;
+      }
+
+      //Generate an ID if not given
+      var id = options.id || _.uniqueId();
+
+      //Add to the list of children
+      var child = this.children[id] = {
+        selector: selector,
+        view: view
+      };
+
+      //If this view is already rendered, add the child automatically
+      if (this.rendered) {
+        this.renderView(id);
+      }
+
+      return view;
+    },
+
+    /**
+     * Get a child view by ID
+     *
+     * @param {Mixed} id      The child view ID
+     *
+     * @return {View|Null}
+     */
+    getView: function(id) {
+      var child = this.children[id];
+      
+      return child ? child.view : null;
+    },
+
+    /**
+     * Renders the main element with the template.
+     *
+     * If using a template and the 'unwrap' property is true then the template HTML will not be wrapped
+     * in an extra tag. This can make editing and styling templates easier.
+     * 
+     * @return {View}     Returns self
+     */
+    render: function() {
+      if (this.template) {
+        var html = '';
+
+        //Get data for template
+        var data = _.isFunction(this.templateData) ? this.templateData() : this.templateData;
+
+        //Add template helpers
+        _.extend(data, this.renderHelpers);
+
+        //Render HTML
+        html = Backbone.$(this.template(data));
+
+        //If using unwrap and this is an update, only replace the main element contents
+        //This ensures the view that's actually in the DOM is updated
+        if (this.unwrap) {
+          if (!this.rendered) {
+            this.setElement(html);
+          } else {
+            this.$el.html(html.html());
+            this.delegateEvents();
+          }
+        } else {
+          this.$el.html(html);
+        }
+      }
+
+      this.renderViews();
+
+      if (this.onRender) this.onRender();
+
+      this.rendered = true;
+
+      return this;
+    },
+
+    /**
+     * Render all child views
+     */
+    renderViews: function() {
+      var self = this,
+          ids = _.keys(this.children);
+
+      _.each(ids, _.bind(self.renderView, this));
+    },
+
+    /**
+     * Renders a child view and adds it to it's locations in the parent element
+     *
+     * @param {Mixed} id    The child view ID
+     */
+    renderView: function(id) {
+      var child = this.children[id];
+
+      var selector = child.selector,
+          view = child.view,
+          $el = null;
+
+      view.render();
+
+      //Decide where the child view is going
+      if (selector) {
+        $el = this.$el.find(selector);
+      } else {
+        $el = this.$el;
+      }
+
+      $el.append(view.el);
+    },
+
+    /**
+     * Close and remove all child views
+     */
+    removeViews: function() {
+      var self = this,
+          ids = _.keys(this.children);
+
+      _.each(ids, _.bind(self.removeView, this));
+    },
+
+    /**
+     * Close and remove a child view
+     *
+     * @param {Mixed} id    Child view ID
+     */
+    removeView: function(id) {
+      var children = this.children,
+          child = children[id];
+
+      if (!child) return;
+
+      child.view.remove();
+
+      delete children[id];
+    },
+
+    /**
+     * Closes child views then this one, removes event listeners etc.
+     */
+    remove: function() {
+      this.removeViews();
+
+      Backbone.View.prototype.remove.call(this);
+    }
+  });
+
+
+  /**
+   * CollectionView
+   * Renders a list of ItemViews representing a collection
+   */
+  var CollectionView = XView.extend({
+    tagName: 'ul',
+
+    //Selector string for where items will be inserted. If not set, will default to the root element
+    listSelector: null,
+
+    //Selector string for content to show if there are no items
+    fallbackSelector: null,
+
+    //Selector string for content to show if there are no items
+    loadingSelector: null,
+
+    /**
+     * Constructor
+     *
+     * @param {Object} options
+     * @param {Collection} options.collection   Collection to render
+     * @param {XView} options.itemView          Constructor (not instance) for an item view
+     */
+    constructor: function(options) {
+      XView.prototype.constructor.call(this, options);
+
+      options = options || {};
+
+      if (options.collection) this.collection = options.collection;
+      if (!this.collection) throw new Error('collection is required');
+
+      if (options.itemView) this.itemView = options.itemView;
+      if (!this.itemView) throw new Error('itemView is required');
+
+      this.listenTo(this.collection, 'add', this.addItem);
+      this.listenTo(this.collection, 'remove', this.removeItem);
+      this.listenTo(this.collection, 'reset', this.resetItems);
+      this.listenTo(this.collection, 'request', this.onRequest);
+      this.listenTo(this.collection, 'sync', this.onSync);
+
+      //Render items if already in the collection
+      if (this.collection.length) this.resetItems();
+    },
+
+    render: function() {
+      XView.prototype.render.call(this);
+
+      //Show loading content if loading began before view was rendered
+      if (this.loadingSelector) {
+        var $loading = this.$(this.loadingSelector);
+
+        if (this.isLoading) {
+          $loading.show();
+        } else {
+          $loading.hide();
+        }
+      }
+
+      if (this.fallbackSelector) {
+        var $fallback = this.$(this.fallbackSelector);
+
+        $fallback.hide();
+      }
+
+      return this;
+    },
+
+    /**
+     * @param {Model} model
+     */
+    addItem: function(model) {
+      var view = new this.itemView({
+        model: model,
+        listView: this, //TODO: remove listView in favour of 'parent'?
+        parent: this
+      });
+
+      this.addView(this.listSelector || null, { id: model.cid }, view);
+    },
+
+    /**
+     * @param {Model} model
+     */
+    removeItem: function(model) {
+      this.removeView(model.cid);
+    },
+
+    /**
+     * Removes existing item views and adds the current collection contents
+     */
+    resetItems: function() {
+      this.removeViews();
+
+      this.collection.each(_.bind(this.addItem, this));
+
+      //Show fallback if there are no items
+      if (this.fallbackSelector && !this.collection.length) {
+        this.$(this.fallbackSelector).show();
+      }
+    },
+
+    /**
+     * Get the item container (if rendered). Uses the this.listSelector selector if available;
+     * otherwise the main element is returned
+     *
+     * @return {jQuery}
+     */
+    getListEl: function() {
+      if (!this.rendered) throw new Error('View has not yet been rendered');
+
+      var $el;
+
+      if (this.listSelector) {
+        $el = this.$(this.listSelector);
+      } else {
+        $el = this.$el;
+      }
+
+      return $el;
+    },
+
+    /**
+     * Callback for when a request has started, i.e. collection is in loading state
+     */
+    onRequest: function() {
+      this.isLoading = true;
+
+      //Show loading if there are no items
+      if (this.loadingSelector && !this.collection.length) {
+        this.$(this.loadingSelector).show();
+      }
+    },
+
+    /**
+     * Callback for when a request has ended, i.e. collection is not in loading state
+     */
+    onSync: function() {
+      //Hide loading
+      this.isLoading = false;
+      if (this.loadingSelector) {
+        this.$(this.loadingSelector).hide();
+      }
+
+      //Show fallback if there are no items
+      if (this.fallbackSelector && !this.collection.length) {
+        this.$(this.fallbackSelector).show();
+      }
+    }
+  });
+
+
+  /**
+   * Exports
+   */
+  XView.Collection = CollectionView;
+
+  Backbone.XView = XView;
+
+  //For use in NodeJS
+  if (typeof module != 'undefined') module.exports = XView;
+  
+  return Backbone.XView;
+
+}));
+
+},{"backbone":10,"underscore":13}],10:[function(require,module,exports){
 //     Backbone.js 1.1.2
 
 //     (c) 2010-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -1822,7 +2233,7 @@ module.exports=[ {"id": 1, "title": "The Artist" },
 
 }));
 
-},{"underscore":10}],10:[function(require,module,exports){
+},{"underscore":11}],11:[function(require,module,exports){
 //     Underscore.js 1.6.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -3167,7 +3578,7 @@ module.exports=[ {"id": 1, "title": "The Artist" },
   }
 }).call(this);
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v1.10.2
  * http://jquery.com/
@@ -12958,6 +13369,6 @@ if ( typeof module === "object" && module && typeof module.exports === "object" 
 
 })( window );
 
-},{}],12:[function(require,module,exports){
-module.exports=require(10)
+},{}],13:[function(require,module,exports){
+module.exports=require(11)
 },{}]},{},[1])

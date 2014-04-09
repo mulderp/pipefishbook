@@ -1,22 +1,26 @@
   var Backbone = require('backbone');
+  Backbone.XView = require('backbone.xview');
+  var _ = require('underscore');
   
   // import the moviesList
   var MoviesList = require('views/moviesList');
   
-  var Layout = Backbone.View.extend({
-    
-    render: function() {
-      this.$el.append(this.moviesList.render().el);
-      return this;
+  var Layout = Backbone.XView.extend({
+
+    template: _.template('           \
+               <div id="overview">   \
+               </div>                \
+               <div id="details">    \
+               </div>'),
+    setDetails: function() {
     },
-  
     initialize: function(options) {
-      this.moviesList = new MoviesList({
-        el: options.el,
-        collection: options.collection,
+      this.addView('#overview', new MoviesList({
+        collection: options.router.movies,
         router: options.router
-      });
-    } 
+      }));
+    }
+ 
   });
 
   var instance;
